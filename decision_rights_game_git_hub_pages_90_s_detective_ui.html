@@ -1,0 +1,1074 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Decision Rights — Simulador (90s Detective UI)</title>
+  <style>
+    :root{
+      --bg:#0b1020;
+      --panel:#111a33;
+      --panel2:#0f1730;
+      --ink:#e8f1ff;
+      --muted:#a9b8d6;
+      --accent:#ffcc00;
+      --danger:#ff3b3b;
+      --ok:#37d67a;
+      --line:#2a3a66;
+      --shadow: 0 12px 30px rgba(0,0,0,.45);
+      --radius: 14px;
+      --mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+      --sans: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji","Segoe UI Emoji";
+    }
+
+    /*
+      Estética: "edutainment/desktop detective UI" anos 90.
+      Importante: não copiamos logos, nomes, artes ou fontes proprietárias.
+      É apenas uma vibe com:
+      - painéis com bordas
+      - mapa/grade
+      - tipografia mono + sans
+      - cores fortes (amarelo/azul)
+      - "scanner" e "dossier".
+    */
+
+    *{ box-sizing:border-box; }
+    html,body{ height:100%; }
+    body{
+      margin:0;
+      background: radial-gradient(1200px 600px at 20% 0%, #182a5e 0%, var(--bg) 55%, #060913 100%);
+      color:var(--ink);
+      font-family:var(--sans);
+      letter-spacing:.2px;
+    }
+
+    .topbar{
+      position:sticky;
+      top:0;
+      z-index:10;
+      background: linear-gradient(180deg, rgba(17,26,51,.96), rgba(11,16,32,.92));
+      border-bottom:1px solid var(--line);
+      box-shadow: 0 8px 18px rgba(0,0,0,.28);
+      backdrop-filter: blur(8px);
+    }
+    .topbar-inner{
+      max-width:1200px;
+      margin:0 auto;
+      padding:14px 16px;
+      display:flex;
+      gap:14px;
+      align-items:center;
+      justify-content:space-between;
+    }
+    .brand{
+      display:flex;
+      align-items:center;
+      gap:12px;
+      min-width: 260px;
+    }
+    .badge{
+      width:44px;height:44px;
+      border-radius:12px;
+      background: linear-gradient(145deg, #1b2c66, #0e1430);
+      border:1px solid var(--line);
+      box-shadow: var(--shadow);
+      position:relative;
+      overflow:hidden;
+    }
+    .badge:before{
+      content:"";
+      position:absolute; inset:-30px;
+      background: repeating-linear-gradient(90deg, rgba(255,204,0,.0) 0 10px, rgba(255,204,0,.10) 10px 20px);
+      transform: rotate(18deg);
+      opacity:.8;
+    }
+    .brand h1{
+      margin:0;
+      font-size:14px;
+      text-transform:uppercase;
+      letter-spacing:2px;
+      color:var(--accent);
+    }
+    .brand .sub{
+      font-size:12px;
+      color:var(--muted);
+      margin-top:2px;
+    }
+
+    .toolbar{
+      display:flex;
+      gap:10px;
+      align-items:center;
+      flex-wrap:wrap;
+      justify-content:flex-end;
+    }
+    .pill{
+      display:flex;
+      align-items:center;
+      gap:10px;
+      background: linear-gradient(145deg, rgba(15,23,48,.9), rgba(10,14,30,.9));
+      border:1px solid var(--line);
+      border-radius:999px;
+      padding:8px 10px;
+      box-shadow: 0 10px 24px rgba(0,0,0,.22);
+    }
+    .pill label{ font-size:12px; color:var(--muted); }
+    select, button, input[type="checkbox"]{
+      font-family:var(--sans);
+    }
+    select{
+      appearance:none;
+      background: rgba(255,255,255,.06);
+      border:1px solid rgba(255,255,255,.12);
+      color:var(--ink);
+      padding:8px 36px 8px 10px;
+      border-radius:12px;
+      font-size:12px;
+      outline:none;
+      position:relative;
+    }
+    .select-wrap{ position:relative; }
+    .select-wrap:after{
+      content:"▾";
+      position:absolute;
+      right:12px;
+      top:50%;
+      transform:translateY(-50%);
+      color:var(--muted);
+      pointer-events:none;
+      font-size:12px;
+    }
+    button{
+      border:1px solid rgba(255,255,255,.14);
+      background: linear-gradient(180deg, rgba(255,204,0,.18), rgba(255,204,0,.08));
+      color:var(--ink);
+      padding:10px 12px;
+      border-radius:12px;
+      cursor:pointer;
+      font-size:12px;
+      letter-spacing:.4px;
+      text-transform:uppercase;
+    }
+    button:hover{ filter:brightness(1.06); }
+    button:active{ transform: translateY(1px); }
+    button.secondary{
+      background: linear-gradient(180deg, rgba(255,255,255,.08), rgba(255,255,255,.03));
+      border-color: rgba(255,255,255,.12);
+    }
+    button.danger{
+      background: linear-gradient(180deg, rgba(255,59,59,.26), rgba(255,59,59,.12));
+      border-color: rgba(255,59,59,.30);
+    }
+
+    .wrap{
+      max-width:1200px;
+      margin:0 auto;
+      padding:18px 16px 30px;
+      display:grid;
+      grid-template-columns: 360px 1fr;
+      gap:16px;
+    }
+
+    @media (max-width: 980px){
+      .wrap{ grid-template-columns: 1fr; }
+      .brand{ min-width:auto; }
+    }
+
+    .panel{
+      background: linear-gradient(180deg, rgba(17,26,51,.92), rgba(12,16,36,.92));
+      border:1px solid var(--line);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      overflow:hidden;
+      position:relative;
+    }
+    .panel .hd{
+      padding:12px 14px;
+      border-bottom:1px solid var(--line);
+      background: linear-gradient(180deg, rgba(255,204,0,.10), rgba(255,255,255,.02));
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:10px;
+    }
+    .panel .hd .title{
+      display:flex;
+      flex-direction:column;
+      gap:2px;
+    }
+    .panel .hd .title b{
+      font-size:12px;
+      text-transform:uppercase;
+      letter-spacing:1.6px;
+      color:var(--accent);
+    }
+    .panel .hd .title span{ font-size:12px; color:var(--muted); }
+    .panel .bd{ padding:14px; }
+
+    .grid{
+      display:grid;
+      grid-template-columns: 1fr 1fr;
+      gap:12px;
+    }
+
+    .stat{
+      border:1px solid rgba(255,255,255,.10);
+      border-radius:14px;
+      padding:10px 10px 12px;
+      background: linear-gradient(180deg, rgba(255,255,255,.04), rgba(255,255,255,.02));
+      position:relative;
+      overflow:hidden;
+    }
+    .stat .k{
+      font-size:11px;
+      color:var(--muted);
+      text-transform:uppercase;
+      letter-spacing:1.2px;
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:10px;
+    }
+    .stat .v{
+      margin-top:8px;
+      display:flex;
+      align-items:flex-end;
+      justify-content:space-between;
+      gap:10px;
+    }
+    .stat .num{
+      font-family: var(--mono);
+      font-size:22px;
+      letter-spacing:1px;
+    }
+    .bar{
+      height:10px;
+      width:100%;
+      background: rgba(255,255,255,.08);
+      border:1px solid rgba(255,255,255,.10);
+      border-radius: 999px;
+      overflow:hidden;
+      margin-top:10px;
+    }
+    .bar > i{
+      display:block;
+      height:100%;
+      width:50%;
+      background: linear-gradient(90deg, rgba(255,204,0,.65), rgba(255,204,0,.20));
+    }
+
+    .tag{
+      font-family: var(--mono);
+      font-size:11px;
+      padding:3px 8px;
+      border-radius:999px;
+      border:1px solid rgba(255,255,255,.14);
+      color:var(--muted);
+      background: rgba(0,0,0,.18);
+      white-space:nowrap;
+    }
+    .tag.ok{ color: #baf7cf; border-color: rgba(55,214,122,.30); background: rgba(55,214,122,.10); }
+    .tag.bad{ color: #ffd0d0; border-color: rgba(255,59,59,.35); background: rgba(255,59,59,.10); }
+
+    .dossier{
+      display:flex;
+      flex-direction:column;
+      gap:10px;
+    }
+
+    .role-card{
+      border:1px solid rgba(255,255,255,.10);
+      background: linear-gradient(180deg, rgba(255,255,255,.035), rgba(255,255,255,.015));
+      border-radius: 14px;
+      padding:12px;
+    }
+    .role-card h3{
+      margin:0 0 8px 0;
+      font-size:12px;
+      text-transform:uppercase;
+      letter-spacing:1.2px;
+      color:var(--accent);
+      display:flex;
+      justify-content:space-between;
+      gap:10px;
+      align-items:center;
+    }
+    .role-card p{
+      margin:0;
+      color:var(--muted);
+      font-size:12px;
+      line-height:1.4;
+    }
+
+    .actions{
+      display:grid;
+      grid-template-columns: 1fr 1fr;
+      gap:12px;
+    }
+    @media (max-width: 980px){
+      .actions{ grid-template-columns: 1fr; }
+    }
+
+    .action-card{
+      border:1px solid rgba(255,255,255,.10);
+      background: linear-gradient(180deg, rgba(15,23,48,.55), rgba(8,10,20,.4));
+      border-radius: 14px;
+      overflow:hidden;
+      position:relative;
+    }
+    .action-card .a-hd{
+      padding:10px 12px;
+      border-bottom:1px solid rgba(255,255,255,.10);
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:10px;
+    }
+    .action-card .a-hd b{
+      font-size:12px;
+      text-transform:uppercase;
+      letter-spacing:1.2px;
+      color:var(--ink);
+    }
+    .action-card .a-hd span{ font-size:11px; color:var(--muted); }
+    .action-card .a-bd{ padding:12px; }
+    .help{
+      font-size:12px;
+      color:var(--muted);
+      line-height:1.5;
+    }
+
+    .btnrow{ display:flex; gap:10px; flex-wrap:wrap; margin-top:10px; }
+
+    .radio-grid{ display:grid; grid-template-columns:1fr; gap:8px; }
+    .opt{
+      display:flex;
+      gap:10px;
+      align-items:flex-start;
+      padding:10px;
+      border-radius:12px;
+      border:1px solid rgba(255,255,255,.10);
+      background: rgba(255,255,255,.03);
+      cursor:pointer;
+    }
+    .opt:hover{ filter:brightness(1.04); }
+    .opt input{ margin-top:2px; }
+    .opt .txt{ display:flex; flex-direction:column; gap:2px; }
+    .opt .txt b{ font-size:12px; color:var(--ink); }
+    .opt .txt span{ font-size:12px; color:var(--muted); line-height:1.35; }
+
+    .map{
+      height:220px;
+      border-radius:14px;
+      border:1px solid rgba(255,255,255,.10);
+      background:
+        radial-gradient(650px 220px at 70% 20%, rgba(255,204,0,.12), rgba(255,204,0,0) 55%),
+        linear-gradient(180deg, rgba(255,255,255,.03), rgba(255,255,255,.01)),
+        repeating-linear-gradient(0deg, rgba(255,255,255,.06) 0 1px, rgba(0,0,0,0) 1px 18px),
+        repeating-linear-gradient(90deg, rgba(255,255,255,.06) 0 1px, rgba(0,0,0,0) 1px 18px);
+      position:relative;
+      overflow:hidden;
+    }
+    .blip{
+      position:absolute;
+      width:14px;height:14px;
+      border-radius:50%;
+      background: rgba(255,204,0,.85);
+      box-shadow: 0 0 0 6px rgba(255,204,0,.16), 0 0 18px rgba(255,204,0,.45);
+      transform: translate(-50%, -50%);
+    }
+    .airport{
+      position:absolute;
+      padding:6px 10px;
+      border-radius:999px;
+      background: rgba(0,0,0,.24);
+      border:1px solid rgba(255,255,255,.14);
+      font-family: var(--mono);
+      font-size:11px;
+      color: var(--muted);
+      transform: translate(-50%, -50%);
+      white-space:nowrap;
+    }
+    .route{
+      position:absolute;
+      inset:0;
+      pointer-events:none;
+    }
+
+    .log{
+      font-family: var(--mono);
+      font-size:12px;
+      color: #d7e5ff;
+      background: rgba(0,0,0,.25);
+      border:1px solid rgba(255,255,255,.10);
+      border-radius: 14px;
+      padding:12px;
+      height: 250px;
+      overflow:auto;
+      line-height:1.45;
+    }
+    .log .muted{ color: var(--muted); }
+    .log .ok{ color: #baf7cf; }
+    .log .bad{ color: #ffd0d0; }
+
+    .footer-note{
+      margin-top:12px;
+      color: var(--muted);
+      font-size:11px;
+      line-height:1.4;
+    }
+
+    .scanline{
+      position:absolute;
+      inset:0;
+      pointer-events:none;
+      background: linear-gradient(180deg, rgba(255,255,255,0) 0%, rgba(255,255,255,.05) 50%, rgba(255,255,255,0) 100%);
+      animation: scan 5.5s linear infinite;
+      opacity:.25;
+      mix-blend-mode: screen;
+    }
+    @keyframes scan{
+      0%{ transform: translateY(-120%); }
+      100%{ transform: translateY(120%); }
+    }
+  </style>
+</head>
+<body>
+  <div class="topbar">
+    <div class="topbar-inner">
+      <div class="brand">
+        <div class="badge" aria-hidden="true"></div>
+        <div>
+          <h1>Decision Rights — Simulator</h1>
+          <div class="sub">UI detective 90s • para ensinar arquitetura de decisão (MBM/PBM)</div>
+        </div>
+      </div>
+
+      <div class="toolbar">
+        <div class="pill">
+          <label for="mode">Modo</label>
+          <div class="select-wrap">
+            <select id="mode">
+              <option value="1">Grupo 1 — Centralizado</option>
+              <option value="2">Grupo 2 — Anarquia</option>
+              <option value="3" selected>Grupo 3 — Direitos claros</option>
+            </select>
+          </div>
+        </div>
+        <div class="pill">
+          <label for="airport">Alvo</label>
+          <div class="select-wrap">
+            <select id="airport">
+              <option value="A" selected>Aeroporto A (dist 8)</option>
+              <option value="B">Aeroporto B (dist 14)</option>
+            </select>
+          </div>
+        </div>
+        <div class="pill">
+          <label for="conflict">Conflito (G2)</label>
+          <input id="conflict" type="checkbox" />
+        </div>
+        <button id="next">Executar rodada</button>
+        <button id="reset" class="secondary">Reiniciar</button>
+        <button id="help" class="secondary">Ajuda</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="wrap">
+    <!-- LEFT: STATUS / DOSSIER -->
+    <div class="panel">
+      <div class="hd">
+        <div class="title">
+          <b>Central de Operações</b>
+          <span>Recursos • progresso • gatilhos</span>
+        </div>
+        <span id="stateTag" class="tag">EM VOO</span>
+      </div>
+      <div class="bd">
+        <div class="grid" style="margin-bottom:12px;">
+          <div class="stat">
+            <div class="k"><span>Combustível</span><span class="tag" id="stormTag">Tempestade: OFF</span></div>
+            <div class="v"><div class="num" id="fuel">18</div><div class="tag" id="fuelTip">tick -1</div></div>
+            <div class="bar"><i id="fuelBar" style="width:100%"></i></div>
+          </div>
+          <div class="stat">
+            <div class="k"><span>Motor</span><span class="tag" id="emTag">Emergência: NÃO</span></div>
+            <div class="v"><div class="num" id="engine">10</div><div class="tag" id="engineTip">tick -1</div></div>
+            <div class="bar"><i id="engineBar" style="width:100%"></i></div>
+          </div>
+          <div class="stat">
+            <div class="k"><span>Saúde passageiro</span><span class="tag">tick -1</span></div>
+            <div class="v"><div class="num" id="health">10</div><div class="tag" id="healthTip">risco</div></div>
+            <div class="bar"><i id="healthBar" style="width:100%"></i></div>
+          </div>
+          <div class="stat">
+            <div class="k"><span>Rodada</span><span class="tag">Distância</span></div>
+            <div class="v"><div class="num" id="round">1</div><div class="tag" id="dist">0</div></div>
+            <div class="bar"><i id="distBar" style="width:0%"></i></div>
+          </div>
+        </div>
+
+        <div class="map" aria-label="Mapa (abstraído)">
+          <svg class="route" viewBox="0 0 100 100" preserveAspectRatio="none">
+            <path id="pathA" d="M10 70 C 30 35, 55 50, 78 28" fill="none" stroke="rgba(255,255,255,.14)" stroke-width="1.2" />
+            <path id="pathB" d="M10 70 C 35 78, 55 82, 88 78" fill="none" stroke="rgba(255,255,255,.10)" stroke-width="1.2" />
+          </svg>
+          <div class="airport" style="left:10%; top:70%;">ORIGEM</div>
+          <div class="airport" style="left:78%; top:28%;" id="labelA">A (dist 8)</div>
+          <div class="airport" style="left:88%; top:78%;" id="labelB">B (dist 14)</div>
+          <div class="blip" id="blip" style="left:10%; top:70%;"></div>
+          <div class="scanline"></div>
+        </div>
+
+        <div class="dossier" style="margin-top:12px;">
+          <div class="role-card">
+            <h3>Regras do Sistema <span class="tag">sem aviação</span></h3>
+            <p>
+              A cada rodada: <b>-1</b> combustível, <b>-1</b> motor, <b>-1</b> saúde. Após rodada <b>12</b>, tempestade ativa aumenta os ticks.
+              Objetivo: pousar no aeroporto escolhido antes de cair.
+            </p>
+          </div>
+          <div class="role-card">
+            <h3>Condições de Pouso <span class="tag">claras</span></h3>
+            <p id="landingRules">
+              A: distância 8, exige Motor ≥ 3 (ou ≥ 2 se Emergência). B: distância 14, exige Combustível ≥ 4.
+            </p>
+          </div>
+        </div>
+
+        <div class="footer-note">
+          * Estética inspirada em interfaces de jogos educativos/detetive dos anos 90, sem uso de marcas, logos ou artes proprietárias.
+        </div>
+      </div>
+    </div>
+
+    <!-- RIGHT: ACTIONS + LOG -->
+    <div class="panel">
+      <div class="hd">
+        <div class="title">
+          <b>Console de Decisão</b>
+          <span>Escolha 1 ação por papel e execute a rodada</span>
+        </div>
+        <span class="tag" id="modeHint">Direitos claros: cada papel decide sua variável</span>
+      </div>
+      <div class="bd">
+        <div class="actions">
+          <div class="action-card">
+            <div class="a-hd"><b>Piloto</b><span>Movimento</span></div>
+            <div class="a-bd">
+              <div class="radio-grid" id="pilotOpts"></div>
+            </div>
+          </div>
+
+          <div class="action-card">
+            <div class="a-hd"><b>Engenheiro</b><span>Motor</span></div>
+            <div class="a-bd">
+              <div class="radio-grid" id="engOpts"></div>
+            </div>
+          </div>
+
+          <div class="action-card">
+            <div class="a-hd"><b>Chefe de cabine</b><span>Saúde</span></div>
+            <div class="a-bd">
+              <div class="radio-grid" id="cabOpts"></div>
+            </div>
+          </div>
+
+          <div class="action-card">
+            <div class="a-hd"><b>Copiloto</b><span>Comunicação</span></div>
+            <div class="a-bd">
+              <div class="radio-grid" id="copOpts"></div>
+              <div class="help" style="margin-top:10px;">
+                Emergência só funciona até a rodada <b>5</b>.
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div style="margin-top:14px; display:grid; grid-template-columns: 1fr; gap:12px;">
+          <div class="log" id="log"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- HELP MODAL -->
+  <dialog id="modal" style="border:1px solid rgba(255,255,255,.12); border-radius:16px; background:rgba(9,12,25,.95); color:var(--ink); box-shadow: var(--shadow); max-width: 820px; width: calc(100% - 32px);">
+    <div style="padding:14px 14px 2px; border-bottom:1px solid rgba(255,255,255,.10); display:flex; align-items:flex-start; justify-content:space-between; gap:10px;">
+      <div>
+        <div style="color:var(--accent); text-transform:uppercase; letter-spacing:1.6px; font-size:12px;">Ajuda • como usar</div>
+        <div style="color:var(--muted); font-size:12px; margin-top:4px; line-height:1.4;">
+          Este simulador abstrai aviação e transforma o problema em <b>recursos</b>, <b>regras</b> e <b>decisões</b> — ideal para ensinar <b>Direitos de Decisão</b>.
+        </div>
+      </div>
+      <button id="close" class="secondary" style="padding:8px 10px;">Fechar</button>
+    </div>
+    <div style="padding:14px;">
+      <div style="display:grid; grid-template-columns: 1fr 1fr; gap:12px;">
+        <div class="role-card" style="margin:0;">
+          <h3>Como funciona</h3>
+          <p>
+            1) Escolha <b>modo</b> e <b>aeroporto</b>.<br>
+            2) Selecione 1 ação por papel.<br>
+            3) Clique <b>Executar rodada</b>.<br>
+            4) Observe o log e os indicadores.
+          </p>
+        </div>
+        <div class="role-card" style="margin:0;">
+          <h3>O que o modo muda</h3>
+          <p>
+            <b>G1</b>: simula gargalo (decisões centralizadas).<br>
+            <b>G2</b>: simula caos — marque <b>Conflito</b> se duas pessoas “falariam” ao mesmo tempo.<br>
+            <b>G3</b>: simula direitos claros (alinhados com conhecimento).
+          </p>
+        </div>
+      </div>
+      <div class="role-card" style="margin-top:12px;">
+        <h3>Dicas para sala</h3>
+        <p>
+          Use o modo G2 com <b>Conflito</b> ligado em algumas rodadas para mostrar o custo de arquitetura ruim.<br>
+          No debriefing, compare: velocidade, coerência, accountability e resultado (pouso vs queda).
+        </p>
+      </div>
+    </div>
+  </dialog>
+
+  <script>
+    // =============================
+    // GAME LOGIC (JS)
+    // =============================
+
+    const CFG = {
+      fuel: 18,
+      engine: 10,
+      health: 10,
+
+      stormRound: 12, // 1-index
+      stormFuelPenalty: 1,
+      stormEnginePenalty: 1,
+
+      airportA: { dist: 8, minEngine: 3 },
+      airportB: { dist: 14, minFuel: 4 },
+
+      emergencyDeadline: 5,
+      emergencyAEngineBonus: 1, // reduces requirement by 1
+
+      baseTick: { fuel: 1, engine: 1, health: 1 },
+      maxRounds: 20,
+    };
+
+    const ACTIONS = {
+      pilot: {
+        normal: { advance: 1, fuelExtra: 0, label: "Normal", desc: "+1 distância. Sem custo extra." },
+        fast: { advance: 2, fuelExtra: 1, label: "Acelerar", desc: "+2 distância. Custa +1 combustível." },
+      },
+      engineer: {
+        repair: { engineDelta: +2, fuelExtra: 1, label: "Reparar", desc: "+2 motor. Custa +1 combustível." },
+        protect: { engineTickReduce: 1, fuelExtra: 1, label: "Proteger", desc: "Reduz desgaste do motor no tick em 1. Custa +1 combustível." },
+      },
+      cabin: {
+        stabilize: { healthDelta: +2, label: "Estabilizar", desc: "+2 saúde." },
+        none: { healthDelta: 0, label: "Sem ação", desc: "Não faz nada." },
+      },
+      copilot: {
+        declare: { label: "Declarar emergência", desc: "Até a rodada 5: reduz requisito de motor no Aeroporto A." },
+        none: { label: "Sem ação", desc: "Não declara." },
+      }
+    };
+
+    const $ = (id) => document.getElementById(id);
+
+    const ui = {
+      mode: $("mode"),
+      airport: $("airport"),
+      conflict: $("conflict"),
+      next: $("next"),
+      reset: $("reset"),
+      log: $("log"),
+      help: $("help"),
+
+      fuel: $("fuel"),
+      engine: $("engine"),
+      health: $("health"),
+      round: $("round"),
+      dist: $("dist"),
+      stormTag: $("stormTag"),
+      emTag: $("emTag"),
+      stateTag: $("stateTag"),
+      modeHint: $("modeHint"),
+
+      fuelBar: $("fuelBar"),
+      engineBar: $("engineBar"),
+      healthBar: $("healthBar"),
+      distBar: $("distBar"),
+
+      blip: $("blip"),
+      labelA: $("labelA"),
+      labelB: $("labelB"),
+
+      pilotOpts: $("pilotOpts"),
+      engOpts: $("engOpts"),
+      cabOpts: $("cabOpts"),
+      copOpts: $("copOpts"),
+
+      modal: $("modal"),
+      close: $("close"),
+      landingRules: $("landingRules"),
+    };
+
+    const initState = () => ({
+      round: 1,
+      fuel: CFG.fuel,
+      engine: CFG.engine,
+      health: CFG.health,
+      dist: 0,
+      emergency: false,
+      airport: ui.airport.value,
+      over: false,
+      landed: false,
+    });
+
+    let st = initState();
+
+    const readMode = () => parseInt(ui.mode.value, 10);
+
+    function stormActive(){
+      return st.round >= CFG.stormRound;
+    }
+
+    function landingReq(){
+      const aMin = CFG.airportA.minEngine - (st.emergency ? CFG.emergencyAEngineBonus : 0);
+      return {
+        A: { dist: CFG.airportA.dist, minEngine: aMin },
+        B: { dist: CFG.airportB.dist, minFuel: CFG.airportB.minFuel },
+      };
+    }
+
+    function logLine(text, cls=""){
+      const el = document.createElement("div");
+      el.textContent = text;
+      if(cls) el.className = cls;
+      ui.log.appendChild(el);
+      ui.log.scrollTop = ui.log.scrollHeight;
+    }
+
+    function clearLog(){
+      ui.log.innerHTML = "";
+    }
+
+    function pct(val, max){
+      const p = Math.max(0, Math.min(1, val / max));
+      return Math.round(p * 100);
+    }
+
+    function setTag(el, text, kind){
+      el.textContent = text;
+      el.classList.remove("ok","bad");
+      if(kind) el.classList.add(kind);
+    }
+
+    function renderMap(){
+      const req = landingReq();
+      const target = st.airport;
+      const total = target === "A" ? req.A.dist : req.B.dist;
+      const progress = Math.max(0, Math.min(total, st.dist));
+      const t = total === 0 ? 0 : (progress / total);
+
+      // Convert progress to a simple 2D lerp on our pseudo routes.
+      // For A: from (10,70) to (78,28)
+      // For B: from (10,70) to (88,78)
+      let x0=10, y0=70, x1=78, y1=28;
+      if(target === "B"){ x1=88; y1=78; }
+
+      const x = x0 + (x1-x0)*t;
+      const y = y0 + (y1-y0)*t;
+      ui.blip.style.left = x + "%";
+      ui.blip.style.top = y + "%";
+
+      // highlight selected airport label
+      ui.labelA.style.borderColor = target==="A" ? "rgba(255,204,0,.55)" : "rgba(255,255,255,.14)";
+      ui.labelA.style.color = target==="A" ? "#ffe89a" : "var(--muted)";
+      ui.labelB.style.borderColor = target==="B" ? "rgba(255,204,0,.55)" : "rgba(255,255,255,.14)";
+      ui.labelB.style.color = target==="B" ? "#ffe89a" : "var(--muted)";
+
+      ui.distBar.style.width = Math.round((progress/total)*100) + "%";
+    }
+
+    function render(){
+      ui.fuel.textContent = st.fuel;
+      ui.engine.textContent = st.engine;
+      ui.health.textContent = st.health;
+      ui.round.textContent = st.round;
+      ui.dist.textContent = `${st.dist} / ${st.airport === "A" ? CFG.airportA.dist : CFG.airportB.dist}`;
+
+      ui.fuelBar.style.width = pct(st.fuel, CFG.fuel) + "%";
+      ui.engineBar.style.width = pct(st.engine, CFG.engine) + "%";
+      ui.healthBar.style.width = pct(st.health, CFG.health) + "%";
+
+      if(stormActive()){
+        ui.stormTag.textContent = "Tempestade: ON";
+        ui.stormTag.style.borderColor = "rgba(255,59,59,.35)";
+      } else {
+        ui.stormTag.textContent = "Tempestade: OFF";
+        ui.stormTag.style.borderColor = "rgba(255,255,255,.14)";
+      }
+
+      ui.emTag.textContent = st.emergency ? "Emergência: SIM" : "Emergência: NÃO";
+      ui.emTag.classList.toggle("ok", st.emergency);
+
+      const mode = readMode();
+      ui.modeHint.textContent = mode === 1
+        ? "Centralizado: gargalo e perda de informação"
+        : mode === 2
+          ? "Anarquia: risco de conflito e decisão inválida"
+          : "Direitos claros: autoridade alinhada com conhecimento";
+
+      // state tag
+      if(st.over){
+        setTag(ui.stateTag, st.landed ? "POUSO" : "QUEDA", st.landed ? "ok" : "bad");
+      } else {
+        setTag(ui.stateTag, "EM VOO", "");
+      }
+
+      const req = landingReq();
+      ui.landingRules.textContent = `A: distância ${req.A.dist}, exige Motor ≥ ${req.A.minEngine}. B: distância ${req.B.dist}, exige Combustível ≥ ${req.B.minFuel}. Tempestade ativa na rodada ${CFG.stormRound}.`;
+
+      renderMap();
+
+      // Disable controls if over
+      ui.next.disabled = st.over;
+      ui.mode.disabled = st.over;
+      ui.airport.disabled = st.over;
+      ui.conflict.disabled = st.over;
+      document.querySelectorAll('input[name="pilot"],input[name="engineer"],input[name="cabin"],input[name="copilot"]').forEach(i=>i.disabled = st.over);
+    }
+
+    function makeOption(name, value, title, desc, checked=false){
+      const id = `${name}-${value}`;
+      const wrap = document.createElement("label");
+      wrap.className = "opt";
+      wrap.setAttribute("for", id);
+      wrap.innerHTML = `
+        <input type="radio" id="${id}" name="${name}" value="${value}" ${checked?"checked":""}>
+        <div class="txt">
+          <b>${title}</b>
+          <span>${desc}</span>
+        </div>
+      `;
+      return wrap;
+    }
+
+    function mountOptions(){
+      ui.pilotOpts.innerHTML = "";
+      ui.engOpts.innerHTML = "";
+      ui.cabOpts.innerHTML = "";
+      ui.copOpts.innerHTML = "";
+
+      ui.pilotOpts.appendChild(makeOption("pilot","normal",ACTIONS.pilot.normal.label,ACTIONS.pilot.normal.desc,true));
+      ui.pilotOpts.appendChild(makeOption("pilot","fast",ACTIONS.pilot.fast.label,ACTIONS.pilot.fast.desc,false));
+
+      ui.engOpts.appendChild(makeOption("engineer","repair",ACTIONS.engineer.repair.label,ACTIONS.engineer.repair.desc,true));
+      ui.engOpts.appendChild(makeOption("engineer","protect",ACTIONS.engineer.protect.label,ACTIONS.engineer.protect.desc,false));
+
+      ui.cabOpts.appendChild(makeOption("cabin","stabilize",ACTIONS.cabin.stabilize.label,ACTIONS.cabin.stabilize.desc,true));
+      ui.cabOpts.appendChild(makeOption("cabin","none",ACTIONS.cabin.none.label,ACTIONS.cabin.none.desc,false));
+
+      ui.copOpts.appendChild(makeOption("copilot","declare",ACTIONS.copilot.declare.label,ACTIONS.copilot.declare.desc,false));
+      ui.copOpts.appendChild(makeOption("copilot","none",ACTIONS.copilot.none.label,ACTIONS.copilot.none.desc,true));
+    }
+
+    function getChoice(name){
+      const el = document.querySelector(`input[name="${name}"]:checked`);
+      return el ? el.value : null;
+    }
+
+    function tick(engineerChoice){
+      let fuelTick = CFG.baseTick.fuel;
+      let engineTick = CFG.baseTick.engine;
+      let healthTick = CFG.baseTick.health;
+
+      if(stormActive()){
+        fuelTick += CFG.stormFuelPenalty;
+        engineTick += CFG.stormEnginePenalty;
+      }
+
+      if(engineerChoice === "protect"){
+        engineTick = Math.max(0, engineTick - ACTIONS.engineer.protect.engineTickReduce);
+      }
+
+      st.fuel -= fuelTick;
+      st.engine -= engineTick;
+      st.health -= healthTick;
+
+      logLine(`TICK: -${fuelTick} combustível, -${engineTick} motor, -${healthTick} saúde${stormActive()?" (tempestade)":""}`, "muted");
+    }
+
+    function applyActions(pilotChoice, engineerChoice, cabinChoice, copilotChoice, mode, conflict){
+      // Grupo 2: conflito anula ações
+      if(mode === 2 && conflict){
+        logLine("⚠️ Conflito (G2): decisões simultâneas → ações ANULADAS nesta rodada.", "bad");
+        return;
+      }
+
+      // Copiloto: emergência
+      if(copilotChoice === "declare"){
+        if(st.round <= CFG.emergencyDeadline){
+          st.emergency = true;
+          logLine("📡 Copiloto: EMERGÊNCIA declarada (benefício em A).", "ok");
+        } else {
+          logLine("❌ Emergência declarada tarde demais (sem efeito).", "bad");
+        }
+      }
+
+      // Piloto
+      const p = ACTIONS.pilot[pilotChoice];
+      st.dist += p.advance;
+      st.fuel -= p.fuelExtra;
+      logLine(`🧭 Piloto: ${p.label} → +${p.advance} dist, -${p.fuelExtra} combustível extra.`);
+
+      // Engenheiro
+      if(engineerChoice === "repair"){
+        st.engine += ACTIONS.engineer.repair.engineDelta;
+        st.fuel -= ACTIONS.engineer.repair.fuelExtra;
+        logLine("🔧 Engenheiro: Reparar → +2 motor, -1 combustível extra.");
+      } else {
+        st.fuel -= ACTIONS.engineer.protect.fuelExtra;
+        logLine("🛡️ Engenheiro: Proteger → reduz desgaste do motor no tick, -1 combustível extra.");
+      }
+
+      // Cabine
+      if(cabinChoice === "stabilize"){
+        st.health += ACTIONS.cabin.stabilize.healthDelta;
+        logLine("🩺 Cabine: Estabilizar → +2 saúde.");
+      } else {
+        logLine("🧑‍🤝‍🧑 Cabine: Sem ação.");
+      }
+    }
+
+    function checkEnd(){
+      if(st.fuel <= 0 || st.engine <= 0 || st.health <= 0){
+        st.over = true;
+        st.landed = false;
+        logLine("💥 QUEDA: combustível/motor/saúde chegou a 0.", "bad");
+        return;
+      }
+
+      const req = landingReq();
+      if(st.airport === "A" && st.dist >= req.A.dist){
+        if(st.engine >= req.A.minEngine){
+          st.over = true;
+          st.landed = true;
+          logLine(`🛬 POUSO em A: motor ${st.engine} ≥ ${req.A.minEngine}.`, "ok");
+        } else {
+          st.over = true;
+          st.landed = false;
+          logLine(`💥 FALHA no pouso em A: motor ${st.engine} < ${req.A.minEngine}.`, "bad");
+        }
+      }
+      if(st.airport === "B" && st.dist >= req.B.dist){
+        if(st.fuel >= req.B.minFuel){
+          st.over = true;
+          st.landed = true;
+          logLine(`🛬 POUSO em B: combustível ${st.fuel} ≥ ${req.B.minFuel}.`, "ok");
+        } else {
+          st.over = true;
+          st.landed = false;
+          logLine(`💥 FALHA no pouso em B: combustível ${st.fuel} < ${req.B.minFuel}.`, "bad");
+        }
+      }
+
+      if(!st.over && st.round >= CFG.maxRounds){
+        st.over = true;
+        st.landed = false;
+        logLine("⏹️ Encerrado: limite de rodadas atingido.", "bad");
+      }
+    }
+
+    function runRound(){
+      if(st.over) return;
+
+      const mode = readMode();
+      const conflict = ui.conflict.checked;
+
+      const pilotChoice = getChoice("pilot") || "normal";
+      const engineerChoice = getChoice("engineer") || "repair";
+      const cabinChoice = getChoice("cabin") || "stabilize";
+      const copilotChoice = getChoice("copilot") || "none";
+
+      // Apply airport selection in-flight (allowed) — keeps it simple for teaching.
+      st.airport = ui.airport.value;
+
+      logLine(`\n=== RODADA ${st.round} | Modo G${mode} | Alvo ${st.airport} ===`, "muted");
+
+      // Tick first
+      tick(engineerChoice);
+
+      // Actions
+      applyActions(pilotChoice, engineerChoice, cabinChoice, copilotChoice, mode, conflict);
+
+      // Check end conditions
+      checkEnd();
+
+      // Safety clamp (avoid negative huge)
+      st.fuel = Math.max(-99, st.fuel);
+      st.engine = Math.max(-99, st.engine);
+      st.health = Math.max(-99, st.health);
+
+      // Auto-hints
+      if(st.round === CFG.stormRound-1){
+        logLine(`⚠️ ALERTA: tempestade ativa na próxima rodada (${CFG.stormRound}).`, "bad");
+      }
+
+      // Next round
+      if(!st.over){
+        st.round += 1;
+      }
+
+      render();
+    }
+
+    function resetAll(){
+      st = initState();
+      ui.conflict.checked = false;
+      mountOptions();
+      clearLog();
+      logLine("SISTEMA: pronto. Escolha modo/alvo e execute rodadas.", "muted");
+      render();
+    }
+
+    // =============================
+    // UI WIRING
+    // =============================
+
+    ui.next.addEventListener("click", runRound);
+    ui.reset.addEventListener("click", resetAll);
+
+    ui.mode.addEventListener("change", () => {
+      const m = readMode();
+      ui.conflict.parentElement.style.opacity = (m === 2) ? "1" : ".55";
+      ui.conflict.disabled = (m !== 2) || st.over;
+      render();
+    });
+
+    ui.airport.addEventListener("change", () => {
+      st.airport = ui.airport.value;
+      render();
+    });
+
+    ui.help.addEventListener("click", () => ui.modal.showModal());
+    ui.close.addEventListener("click", () => ui.modal.close());
+
+    // Keyboard shortcuts
+    window.addEventListener("keydown", (e) => {
+      if(e.key === "Enter") runRound();
+      if(e.key === "r" || e.key === "R") resetAll();
+      if(e.key === "Escape" && ui.modal.open) ui.modal.close();
+    });
+
+    // Boot
+    mountOptions();
+    resetAll();
+  </script>
+</body>
+</html>
